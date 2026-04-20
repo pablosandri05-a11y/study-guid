@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0a0a0f;
+      color: white;
+      font-family: 'Space Grotesk', sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    button { cursor: pointer; transition: all 0.2s; }
+    button:hover:not(:disabled) { filter: brightness(1.2); transform: translateY(-1px); }
+    button:disabled { cursor: not-allowed; }
+
+    textarea { transition: border-color 0.2s; }
+    textarea:focus { outline: none; border-color: #7c3aed !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: #0d0d0d; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+
+    .container { max-width: 780px; margin: 0 auto; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 32px; }
+    .header h1 {
+      font-size: 30px;
+      font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif;
+      background: linear-gradient(90deg, #a855f7, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header p {
+      color: #444;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      margin-top: 6px;
+      letter-spacing: 1px;
+    }
+
+    /* API Key row */
+    .api-key-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .api-key-row label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #555;
+      white-space: nowrap;
+      letter-spacing: 1px;
+    }
+    .api-key-row input {
+      flex: 1;
+      background: #0d0d1a;
+      border: 1px solid #1f1f3a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e0e0e0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .api-key-row input:focus { outline: none; border-color: #7c3aed; }
+
+    /* Main textarea */
+    textarea.main-input {
+      width: 100%;
+      background: #0d0d1a;
+      border: 1px solid #1f1f3a;
+      border-radius: 14px;
+      padding: 16px 18px;
+      color: #e0e0e0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+      resize: vertical;
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border: none;
+      border-radius: 10px;
+      padding: 16px 24px;
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      font-weight: bold;
+      width: 100%;
+      margin-top: 12px;
+    }
+    .btn-primary:disabled { opacity: 0.5; }
+    .btn-primary.loading { background: linear-gradient(135deg, #4a2080, #2d2870); }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px 20px;
+      color: #aaa;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+
+    /* Error */
+    .error-box {
+      color: #f87171;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 10px 14px;
+      background: #1a0000;
+      border-radius: 8px;
+      border: 1px solid #450a0a;
+    }
+
+    /* Results */
+    .results { margin-top: 36px; }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      background: #0d0d1a;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid #1a1a2e;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 6px;
+      border-radius: 10px;
+      border: none;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: transparent;
+      color: #555;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white;
+      font-weight: bold;
+    }
+
+    /* Content panel */
+    .content-panel {
+      background: #0d0d1a;
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid #1a1a2e;
+      min-height: 300px;
+    }
+
+    /* Stats */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      justify-content: center;
+    }
+    .stat-item {
+      text-align: center;
+      padding: 8px 16px;
+      background: #111;
+      border-radius: 8px;
+      border: 1px solid #1f1f2e;
+    }
+    .stat-val {
+      font-size: 18px;
+      font-weight: bold;
+      color: #a855f7;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-label {
+      font-size: 10px;
+      color: #444;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Flashcard */
+    .flashcard-counter {
+      text-align: center;
+      margin-bottom: 16px;
+      color: #555;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .flashcard {
+      cursor: pointer;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .flashcard.front {
+      background: linear-gradient(135deg, #130d2e, #2d1b69);
+      border: 1.5px solid #7c3aed;
+    }
+    .flashcard.back {
+      background: linear-gradient(135deg, #0c2a4a, #0c4a6e);
+      border: 1.5px solid #22d3ee;
+    }
+    .flashcard-hint {
+      font-size: 11px;
+      color: #555;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .flashcard-text {
+      font-size: 19px;
+      color: #f0f0f0;
+      font-family: 'Space Grotesk', sans-serif;
+      line-height: 1.5;
+    }
+    .flashcard-nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .dots {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      transition: all 0.2s;
+    }
+
+    /* Quiz */
+    .quiz-question {
+      margin-bottom: 20px;
+      background: #0d0d1a;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #1a1a2e;
+    }
+    .quiz-q-text {
+      color: #e0e0e0;
+      font-size: 15px;
+      margin-bottom: 14px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+    .quiz-q-num {
+      color: #7c3aed;
+      font-family: 'JetBrains Mono', monospace;
+      margin-right: 8px;
+    }
+    .quiz-option {
+      cursor: pointer;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      color: #aaa;
+      font-size: 14px;
+      transition: all 0.15s;
+      width: 100%;
+      text-align: left;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .quiz-option .opt-letter {
+      color: #555;
+      margin-right: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .quiz-option.selected { background: #1a1040; border-color: #7c3aed; color: white; }
+    .quiz-option.correct  { background: #052e16; border-color: #22c55e; color: #86efac; }
+    .quiz-option.wrong    { background: #2d0a0a; border-color: #ef4444; color: #fca5a5; }
+    .quiz-option:disabled { cursor: default; }
+
+    .score-box {
+      background: linear-gradient(135deg, #052e16, #14532d);
+      border: 1px solid #22c55e;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .score-num {
+      font-size: 32px;
+      font-weight: bold;
+      color: #4ade80;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .score-msg { color: #86efac; margin-top: 4px; }
+
+    /* Summary */
+    .summary-text {
+      color: #ccc;
+      line-height: 1.85;
+      font-size: 15px;
+      font-family: 'Space Grotesk', sans-serif;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 600px) {
+      .tab-btn { font-size: 10px; padding: 8px 4px; }
+      .stats-bar { flex-wrap: wrap; }
+      .flashcard-text { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>StudyAI ✦</h1>
+    <p>TRASFORMA QUALSIASI TESTO IN STRUMENTI DI STUDIO</p>
+  </div>
+
+  <!-- API Key -->
+  <div class="api-key-row">
+    <label for="apiKey">API KEY</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+  </div>
+
+  <!-- Input text -->
+  <textarea class="main-input" id="inputText" rows="7"
+    placeholder="Incolla qui il testo da studiare — appunti, capitoli di libro, articoli, slide..."></textarea>
+
+  <button class="btn-primary" id="generateBtn" onclick="generate()">✨  Genera set di studio</button>
+
+  <div id="errorBox" style="display:none;" class="error-box"></div>
+
+  <!-- Results -->
+  <div id="results" class="results" style="display:none;">
+    <div class="tab-bar" id="tabBar"></div>
+    <div class="content-panel" id="contentPanel"></div>
+    <div class="stats-bar" id="statsBar"></div>
+  </div>
+
+</div>
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────
+const state = {
+  studySet: null,
+  activeTab: 'map',
+  flipped: false,
+  currentCard: 0,
+  answers: {},
+  quizSubmitted: false,
+};
+
+const TABS = [
+  { id: 'map',        emoji: '🗺',  name: 'Mappa'     },
+  { id: 'flashcards', emoji: '🃏',  name: 'Flashcard' },
+  { id: 'quiz',       emoji: '❓',  name: 'Quiz'      },
+  { id: 'summary',    emoji: '📝',  name: 'Riassunto' },
+];
+
+const SYSTEM_PROMPT = `You are an educational AI. Given input text, generate a structured study set in JSON format. Return ONLY valid JSON, no markdown, no explanation, no backticks.
+
+The JSON must have this exact structure:
+{
+  "map": {
+    "nodes": [
+      {"id": "0", "label": "Main Topic", "parentId": null},
+      {"id": "1", "label": "Subtopic 1", "parentId": "0"},
+      {"id": "2", "label": "Subtopic 2", "parentId": "0"},
+      {"id": "3", "label": "Detail A", "parentId": "1"}
+    ]
+  },
+  "flashcards": [
+    {"front": "Question or term", "back": "Answer or definition"}
+  ],
+  "quiz": [
+    {
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct": 0
+    }
+  ],
+  "summary": "A clear summary in 3-5 paragraphs."
+}
+
+Rules:
+- map: 8-14 nodes max, hierarchical tree, labels max 4 words, one root node (parentId: null)
+- flashcards: 8-12 cards, front is the question/term, back is the answer/definition
+- quiz: 5-8 questions, "correct" is the index (0-3) of the correct option
+- summary: structured, comprehensive but concise, in the same language as the input text
+- Respond in the SAME LANGUAGE as the input text`;
+
+// ── API CALL ───────────────────────────────────────────────────────────
+async function generate() {
+  const apiKey    = document.getElementById('apiKey').value.trim();
+  const inputText = document.getElementById('inputText').value.trim();
+  if (!inputText) return;
+
+  const btn      = document.getElementById('generateBtn');
+  const errorBox = document.getElementById('errorBox');
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '⏳  Generazione in corso...';
+  errorBox.style.display = 'none';
+
+  state.studySet     = null;
+  state.activeTab    = 'map';
+  state.flipped      = false;
+  state.currentCard  = 0;
+  state.answers      = {};
+  state.quizSubmitted = false;
+
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+    if (apiKey) headers['x-api-key'] = apiKey;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: inputText }],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw  = data.content[0].text.replace(/```json|```/g, '').trim();
+    state.studySet = JSON.parse(raw);
+    renderResults();
+  } catch (e) {
+    errorBox.style.display = 'block';
+    errorBox.textContent   = '⚠ Errore nella generazione: ' + e.message;
+  }
+
+  btn.disabled = false;
+  btn.classList.remove('loading');
+  btn.textContent = '✨  Genera set di studio';
+  syncGenerateBtn();
+}
+
+// ── RENDER PIPELINE ────────────────────────────────────────────────────
+function renderResults() {
+  if (!state.studySet) return;
+  document.getElementById('results').style.display = 'block';
+  renderTabBar();
+  renderContent();
+  renderStats();
+}
+
+function renderTabBar() {
+  document.getElementById('tabBar').innerHTML = TABS.map(t => `
+    <button class="tab-btn ${state.activeTab === t.id ? 'active' : ''}" onclick="switchTab('${t.id}')">
+      ${t.emoji} ${t.name}
+    </button>
+  `).join('');
+}
+
+function switchTab(id) {
+  state.activeTab = id;
+  if (id === 'flashcards') { state.currentCard = 0; state.flipped = false; }
+  renderTabBar();
+  renderContent();
+}
+
+function renderContent() {
+  const panel = document.getElementById('contentPanel');
+  switch (state.activeTab) {
+    case 'map':        panel.innerHTML = buildMap(state.studySet.map.nodes);          break;
+    case 'flashcards': panel.innerHTML = buildFlashcards(state.studySet.flashcards);  break;
+    case 'quiz':       panel.innerHTML = buildQuiz(state.studySet.quiz);              break;
+    case 'summary':    panel.innerHTML = buildSummary(state.studySet.summary);        break;
+  }
+}
+
+function renderStats() {
+  const stats = [
+    { val: state.studySet.map.nodes.length,   label: 'nodi mappa'    },
+    { val: state.studySet.flashcards.length,  label: 'flashcard'     },
+    { val: state.studySet.quiz.length,        label: 'domande quiz'  },
+  ];
+  document.getElementById('statsBar').innerHTML = stats.map(s => `
+    <div class="stat-item">
+      <div class="stat-val">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>
+  `).join('');
+}
+
+// ── CONCEPT MAP ────────────────────────────────────────────────────────
+function buildMap(nodes) {
+  const nodeMap = {};
+  nodes.forEach(n => (nodeMap[n.id] = { ...n, children: [] }));
+  nodes.forEach(n => {
+    if (n.parentId != null && nodeMap[n.parentId]) {
+      nodeMap[n.parentId].children.push(n.id);
+    }
+  });
+
+  const W = 720, H = 480, cx = W / 2, cy = H / 2;
+  const radii = [0, 155, 285, 380];
+
+  const levelGroups = {};
+  const visited = new Set();
+  const queue = nodes
+    .filter(n => n.parentId == null)
+    .map(n => ({ id: n.id, level: 0 }));
+
+  while (queue.length) {
+    const { id, level } = queue.shift();
+    if (visited.has(id)) continue;
+    visited.add(id);
+    if (!levelGroups[level]) levelGroups[level] = [];
+    levelGroups[level].push(id);
+    (nodeMap[id]?.children || []).forEach(cid => queue.push({ id: cid, level: level + 1 }));
+  }
+
+  const pos = {};
+  Object.entries(levelGroups).forEach(([lvl, ids]) => {
+    const r = radii[Math.min(+lvl, radii.length - 1)];
+    ids.forEach((id, i) => {
+      const angle = (2 * Math.PI * i) / ids.length - Math.PI / 2;
+      pos[id] = {
+        x: +lvl === 0 ? cx : cx + r * Math.cos(angle),
+        y: +lvl === 0 ? cy : cy + r * Math.sin(angle),
+        level: +lvl,
+      };
+    });
+  });
+
+  const COLORS = ['#7c3aed', '#0891b2', '#047857', '#b45309'];
+
+  const edgesSVG = nodes
+    .filter(n => n.parentId != null && pos[n.id] && pos[n.parentId])
+    .map(n => `<line x1="${pos[n.parentId].x}" y1="${pos[n.parentId].y}"
+                     x2="${pos[n.id].x}" y2="${pos[n.id].y}"
+                     stroke="#2a1a4a" stroke-width="1.5"/>`)
+    .join('');
+
+  const nodesSVG = nodes.map(n => {
+    const p = pos[n.id];
+    if (!p) return '';
+    const col    = COLORS[Math.min(p.level, COLORS.length - 1)];
+    const isRoot = p.level === 0;
+    const w      = isRoot ? 120 : 110;
+    const h      = isRoot ? 40  : 32;
+    const label  = n.label.length > 18 ? n.label.slice(0, 16) + '…' : n.label;
+    const glow   = isRoot
+      ? `<rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="10"
+               fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.4"
+               transform="scale(1.08)"/>`
+      : '';
+    return `
+      <g transform="translate(${p.x},${p.y})">
+        <rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="${isRoot ? 10 : 8}"
+              fill="${col}" opacity="0.85"
+              stroke="${isRoot ? '#c084fc' : col}" stroke-width="${isRoot ? 2 : 1}"/>
+        ${glow}
+        <text text-anchor="middle" dy="0.4em" fill="white"
+              font-size="${isRoot ? 12 : 10}"
+              font-family="JetBrains Mono, monospace"
+              font-weight="${isRoot ? 'bold' : 'normal'}">${xEsc(label)}</text>
+      </g>`;
+  }).join('');
+
+  return `
+    <div style="overflow-x:auto">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-height:460px">
+        <defs>
+          <radialGradient id="bgGrad" cx="50%" cy="50%">
+            <stop offset="0%"   stop-color="#1a0a2e"/>
+            <stop offset="100%" stop-color="#0a0a0f"/>
+          </radialGradient>
+        </defs>
+        <rect width="${W}" height="${H}" fill="url(#bgGrad)" rx="12"/>
+        ${edgesSVG}
+        ${nodesSVG}
+      </svg>
+    </div>`;
+}
+
+function xEsc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── FLASHCARDS ─────────────────────────────────────────────────────────
+function buildFlashcards(cards) {
+  const card     = cards[state.currentCard];
+  const isBack   = state.flipped;
+  const dots     = cards.map((_, i) => `
+    <button class="dot" style="background:${i === state.currentCard ? '#a855f7' : '#333'}"
+            onclick="goToCard(${i})"></button>`).join('');
+
+  return `
+    <div class="flashcard-counter">${state.currentCard + 1} / ${cards.length}</div>
+    <div class="flashcard ${isBack ? 'back' : 'front'}" onclick="flipCard()">
+      <div>
+        <div class="flashcard-hint">${isBack ? '↩ risposta' : '↺ clicca per girare'}</div>
+        <div class="flashcard-text">${hEsc(isBack ? card.back : card.front)}</div>
+      </div>
+    </div>
+    <div class="flashcard-nav">
+      <button class="btn-secondary" onclick="prevCard()"
+              ${state.currentCard === 0 ? 'disabled style="opacity:0.3"' : ''}>← Prec</button>
+      <button class="btn-secondary" onclick="nextCard(${cards.length})"
+              ${state.currentCard === cards.length - 1 ? 'disabled style="opacity:0.3"' : ''}>Succ →</button>
+    </div>
+    <div class="dots">${dots}</div>`;
+}
+
+function flipCard()         { state.flipped = !state.flipped; renderContent(); }
+function prevCard()         { if (state.currentCard > 0) { state.currentCard--; state.flipped = false; renderContent(); } }
+function nextCard(total)    { if (state.currentCard < total - 1) { state.currentCard++; state.flipped = false; renderContent(); } }
+function goToCard(i)        { state.currentCard = i; state.flipped = false; renderContent(); }
+
+function hEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── QUIZ ───────────────────────────────────────────────────────────────
+function buildQuiz(questions) {
+  const score = state.quizSubmitted
+    ? questions.filter((q, i) => state.answers[i] === q.correct).length
+    : 0;
+
+  const scoreHTML = state.quizSubmitted ? `
+    <div class="score-box">
+      <div class="score-num">${score}/${questions.length}</div>
+      <div class="score-msg">${
+        score === questions.length
+          ? 'Perfetto! 🎉'
+          : score >= questions.length * 0.7
+            ? 'Ottimo lavoro! 👍'
+            : "Ripassare ancora un po' 📚"
+      }</div>
+    </div>` : '';
+
+  const questionsHTML = questions.map((q, qi) => {
+    const opts = q.options.map((opt, oi) => {
+      let cls = 'quiz-option';
+      if (state.quizSubmitted) {
+        if (oi === q.correct)          cls += ' correct';
+        else if (state.answers[qi] === oi) cls += ' wrong';
+      } else if (state.answers[qi] === oi) {
+        cls += ' selected';
+      }
+      return `<button class="${cls}" onclick="selectAnswer(${qi},${oi})"
+                      ${state.quizSubmitted ? 'disabled' : ''}>
+        <span class="opt-letter">${['A','B','C','D'][oi]}.</span>${hEsc(opt)}
+      </button>`;
+    }).join('');
+
+    return `
+      <div class="quiz-question">
+        <div class="quiz-q-text">
+          <span class="quiz-q-num">${qi + 1}.</span>${hEsc(q.question)}
+        </div>
+        ${opts}
+      </div>`;
+  }).join('');
+
+  const answered  = Object.keys(state.answers).length;
+  const actionBtn = !state.quizSubmitted
+    ? `<button class="btn-primary" onclick="submitQuiz()"
+              ${answered < questions.length ? 'disabled style="opacity:0.4"' : ''}>
+        Controlla risposte (${answered}/${questions.length})
+       </button>`
+    : `<button class="btn-secondary" onclick="retryQuiz()" style="width:100%">🔄 Riprova</button>`;
+
+  return scoreHTML + questionsHTML + actionBtn;
+}
+
+function selectAnswer(qi, oi) { if (!state.quizSubmitted) { state.answers[qi] = oi; renderContent(); } }
+function submitQuiz()          { state.quizSubmitted = true;  renderContent(); }
+function retryQuiz()           { state.answers = {}; state.quizSubmitted = false; renderContent(); }
+
+// ── SUMMARY ────────────────────────────────────────────────────────────
+function buildSummary(text) {
+  return `<div class="summary-text">${hEsc(text)}</div>`;
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────
+(function init() {
+  // Restore API key from localStorage
+  const apiKeyEl = document.getElementById('apiKey');
+  const saved    = localStorage.getItem('studyai_key');
+  if (saved) apiKeyEl.value = saved;
+  apiKeyEl.addEventListener('input', () => localStorage.setItem('studyai_key', apiKeyEl.value));
+
+  // Sync generate button state
+  const inputEl = document.getElementById('inputText');
+  inputEl.addEventListener('input', syncGenerateBtn);
+  syncGenerateBtn();
+})();
+
+function syncGenerateBtn() {
+  const btn  = document.getElementById('generateBtn');
+  const hasText = document.getElementById('inputText').value.trim().length > 0;
+  btn.disabled      = !hasText;
+  btn.style.opacity = hasText ? '1' : '0.5';
+}
+</script>
+</body>
+</html>
