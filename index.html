@@ -180,6 +180,24 @@
     .f-btn:hover:not(.active) { border-color: #2dd4bf; transform: none; filter: none; }
     .f-btn.active { background: #0d9488; border-color: #14b8a6; color: #fff; }
 
+    /* ── PDF DROP ZONE ── */
+    .pdf-zone {
+      border: 2px dashed #1d4a44; border-radius: 16px; padding: 28px 20px;
+      text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 14px;
+      background: #0a1a18;
+    }
+    .pdf-zone:hover, .pdf-zone.drag-over { border-color: #2dd4bf; background: #0c2a24; }
+    .pdf-zone-icon { font-size: 36px; margin-bottom: 10px; }
+    .pdf-zone-title { font-size: 15px; font-weight: 700; color: #e0f7f4; margin-bottom: 4px; }
+    .pdf-zone-sub { font-size: 12px; color: #2d6b63; font-family: 'JetBrains Mono', monospace; }
+    .pdf-zone.loading { border-color: #2dd4bf; background: #0c2a24; pointer-events: none; }
+    .pdf-progress { height: 4px; background: #1d4a44; border-radius: 2px; margin-top: 12px; overflow: hidden; display: none; }
+    .pdf-progress-bar { height: 100%; background: linear-gradient(90deg, #0d9488, #2dd4bf); border-radius: 2px; transition: width 0.3s; }
+
+    /* ── DIVIDER ── */
+    .or-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: #2d6b63; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: #1a3a35; }
+
     /* ── MISC ── */
     .sec-lbl { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #2d6b63; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .sec-lbl::after { content: ''; flex: 1; height: 1px; background: #1a3a35; }
@@ -462,81 +480,137 @@ function renderProjContent() {
 // TAB: GENERA
 // ═══════════════════════════════════════════════
 function tabGenera() {
-  const p = proj();
+  const p   = proj();
+  const key = h(localStorage.getItem('studyai_key')||'');
   const docs = (p.docs||[]).map((d,i) => `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:8px 12px;background:#0a1a18;border:1px solid #1d4a44;border-radius:8px;">
       <span style="flex:1;font-size:13px;color:#e0f7f4;">📄 ${h(d.name)}</span>
-      <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="loadDoc(${i})">Carica</button>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="loadAndGenerate(${i})">📤 Genera</button>
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="loadDoc(${i})">Carica testo</button>
       <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;color:#fca5a5;border-color:#7f1d1d;" onclick="removeDoc(${i})">✕</button>
     </div>`).join('');
 
-  const key = h(localStorage.getItem('studyai_key')||'');
   return `
     <div class="api-row">
       <label for="apiKeyP">API KEY</label>
       <input type="password" id="apiKeyP" value="${key}" placeholder="sk-ant-..." autocomplete="off"
              oninput="localStorage.setItem('studyai_key',this.value)">
     </div>
-    ${docs ? `<div class="sec-lbl">Documenti</div>${docs}<div style="margin-bottom:14px;"></div>` : ''}
-    <label class="lbl">Testo da studiare</label>
-    <textarea id="inputText" class="input-field" rows="8"
-      placeholder="Incolla qui il testo — appunti, capitoli, articoli, slide..."></textarea>
+
+    <!-- PDF DROP ZONE -->
+    <div class="pdf-zone" id="pdfZone"
+         onclick="document.getElementById('pdfInput').click()"
+         ondragover="pdfDragOver(event)" ondragleave="pdfDragLeave(event)" ondrop="pdfDrop(event)">
+      <input type="file" accept="application/pdf" id="pdfInput" style="display:none" onchange="handlePDF(this, true)">
+      <div class="pdf-zone-icon">📄</div>
+      <div class="pdf-zone-title">Trascina un PDF qui oppure clicca per selezionarlo</div>
+      <div class="pdf-zone-sub">Estrae il testo e genera il set di studio in automatico · max 30 pagine</div>
+      <div class="pdf-progress" id="pdfProgress"><div class="pdf-progress-bar" id="pdfProgressBar" style="width:0%"></div></div>
+    </div>
+    <div id="pdfStatus" style="display:none;margin-bottom:12px;padding:8px 12px;background:#0c2a24;border:1px solid #0d9488;border-radius:8px;color:#5eead4;font-family:'JetBrains Mono',monospace;font-size:12px;"></div>
+
+    ${docs ? `<div class="sec-lbl">Documenti salvati</div>${docs}<div style="margin-bottom:8px;"></div>` : ''}
+
+    <div class="or-divider">oppure incolla testo</div>
+
+    <textarea id="inputText" class="input-field" rows="6"
+      placeholder="Incolla qui appunti, capitoli, articoli, slide..."></textarea>
     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-      <label class="btn btn-ghost" style="flex:0 0 auto;cursor:pointer;">
-        📎 Carica PDF
-        <input type="file" accept="application/pdf" id="pdfInput" style="display:none" onchange="handlePDF(this)">
-      </label>
-      <button class="btn btn-ghost" onclick="saveDoc()" style="flex:0 0 auto;">💾 Salva documento</button>
-      <button id="genBtn" class="btn btn-gen btn-full" style="flex:1;min-width:200px;" onclick="doGenerate()" disabled>
-        ✨ Genera set di studio
+      <button class="btn btn-ghost" onclick="saveDoc()" style="flex:0 0 auto;">💾 Salva testo</button>
+      <button id="genBtn" class="btn btn-gen btn-full" style="flex:1;min-width:180px;" onclick="doGenerate()" disabled>
+        ✨ Genera dal testo
       </button>
     </div>
-    <div id="pdfStatus" style="display:none;margin-top:8px;padding:8px 12px;background:#0c2a24;border:1px solid #0d9488;border-radius:8px;color:#5eead4;font-family:'JetBrains Mono',monospace;font-size:12px;"></div>
     <div id="errBox" style="display:none;" class="error-box"></div>
     ${ps.studySet ? `
     <div style="margin-top:14px;padding:12px;background:#0c2a24;border:1px solid #0d9488;border-radius:10px;color:#5eead4;font-family:'JetBrains Mono',monospace;font-size:12px;">
-      ✅ Set generato — usa le tab per esplorare mappa, flashcard, quiz, riassunto
+      ✅ Set generato — usa il menu a tendina per esplorare le sezioni
     </div>` : ''}`;
 }
 
-async function handlePDF(input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  const status = document.getElementById('pdfStatus');
-  if (status) { status.style.display='block'; status.textContent='⏳ Lettura PDF in corso...'; }
-  try {
-    const text = await readPDF(file);
-    const ta   = document.getElementById('inputText');
-    if (ta) { ta.value = text; ta.dispatchEvent(new Event('input')); }
-    if (status) status.textContent = `✅ PDF caricato: ${file.name} · ${text.length} caratteri estratti`;
-    // auto-save as document
-    const p = proj();
-    if (!p.docs) p.docs = [];
-    p.docs.push({ id: uid(), name: file.name, text });
-    save();
-    renderProjContent();
-  } catch(e) {
-    if (status) { status.style.display='block'; status.style.borderColor='#7f1d1d'; status.style.color='#fca5a5'; status.textContent='⚠ Errore lettura PDF: '+e.message; }
-  }
-  input.value = '';
+// drag-and-drop handlers
+function pdfDragOver(e)  { e.preventDefault(); document.getElementById('pdfZone')?.classList.add('drag-over'); }
+function pdfDragLeave(e) { document.getElementById('pdfZone')?.classList.remove('drag-over'); }
+function pdfDrop(e) {
+  e.preventDefault();
+  document.getElementById('pdfZone')?.classList.remove('drag-over');
+  const file = e.dataTransfer.files?.[0];
+  if (file?.type === 'application/pdf') handlePDF({ files: [file] }, true);
 }
 
-async function readPDF(file) {
+// generate from saved doc
+async function loadAndGenerate(i) {
+  const p = proj(), d = p.docs?.[i];
+  if (!d) return;
+  const ta = document.getElementById('inputText');
+  if (ta) { ta.value = d.text; ta.dispatchEvent(new Event('input')); }
+  await doGenerate();
+}
+
+async function handlePDF(input, autoGenerate = false) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  // UI feedback
+  const zone   = document.getElementById('pdfZone');
+  const status = document.getElementById('pdfStatus');
+  const bar    = document.getElementById('pdfProgressBar');
+  const prog   = document.getElementById('pdfProgress');
+
+  if (zone)   zone.classList.add('loading');
+  if (status) { status.style.display='block'; status.style.borderColor='#0d9488'; status.style.color='#5eead4'; status.textContent=`⏳ Lettura di "${file.name}"...`; }
+  if (prog)   prog.style.display='block';
+  if (bar)    bar.style.width='10%';
+
+  try {
+    const text = await readPDF(file, pct => { if (bar) bar.style.width = pct+'%'; });
+
+    // save doc
+    const p = proj();
+    if (!p.docs) p.docs = [];
+    const already = p.docs.find(d => d.name === file.name);
+    if (!already) { p.docs.push({ id: uid(), name: file.name, text }); save(); }
+
+    if (bar) bar.style.width = '100%';
+    if (status) status.textContent = `✅ "${file.name}" — ${text.length.toLocaleString()} caratteri · ${autoGenerate ? 'Generazione in corso...' : 'pronto'}`;
+
+    if (autoGenerate) {
+      // put text in textarea and generate
+      const ta = document.getElementById('inputText');
+      if (ta) { ta.value = text; ta.dispatchEvent(new Event('input')); }
+      await doGenerate();
+    } else {
+      const ta = document.getElementById('inputText');
+      if (ta) { ta.value = text; ta.dispatchEvent(new Event('input')); }
+      renderProjContent();
+    }
+  } catch(e) {
+    if (status) { status.style.borderColor='#7f1d1d'; status.style.color='#fca5a5'; status.textContent='⚠ '+e.message; }
+  } finally {
+    if (zone) zone.classList.remove('loading');
+    if (prog) setTimeout(() => { if(prog) prog.style.display='none'; }, 1200);
+    if (input.value !== undefined) input.value = '';
+  }
+}
+
+async function readPDF(file, onProgress) {
   const pdfjsLib = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
-  if (!pdfjsLib) throw new Error('PDF.js non caricato');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf    = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const maxPg  = Math.min(pdf.numPages, 30);
-  const parts  = [];
-  for (let i = 1; i <= maxPg; i++) {
+  if (!pdfjsLib) throw new Error('PDF.js non caricato — controlla la connessione internet');
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf  = await file.arrayBuffer();
+  const pdf  = await pdfjsLib.getDocument({ data: buf }).promise;
+  const maxP = Math.min(pdf.numPages, 30);
+  const parts = [];
+  for (let i = 1; i <= maxP; i++) {
     const page    = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const line    = content.items.map(item => item.str).join(' ');
+    const line    = content.items.map(it => it.str).join(' ');
     parts.push(line.trim());
+    if (onProgress) onProgress(Math.round((i / maxP) * 85) + 10);
   }
-  const text = parts.join('\n\n').trim();
-  if (!text) throw new Error('Nessun testo estratto — il PDF potrebbe contenere solo immagini');
+  const text = parts.filter(Boolean).join('\n\n').trim();
+  if (!text) throw new Error('Nessun testo estratto — il PDF contiene solo immagini (scansione)');
   return text;
 }
 
